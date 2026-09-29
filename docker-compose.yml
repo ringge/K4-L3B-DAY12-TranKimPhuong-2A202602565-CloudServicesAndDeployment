@@ -6,7 +6,7 @@
 #
 # NHIỆM VỤ: bổ sung service `agent`. Yêu cầu:
 #   [x] build từ Dockerfile trong thư mục hiện tại
-#   [x] map cổng ra ngoài (8000:8000)
+#   [x] map cổng ra ngoài; dải 8000-8002 cho phép scale nhiều agent
 #   [x] KHÔNG viết secret thẳng vào file này — dùng nội suy biến môi trường
 #       `${AGENT_API_KEY}` (docker compose tự đọc từ file .env cùng thư mục)
 #   [x] REDIS_URL trỏ tới `redis://redis:6379/0` — trong compose, tên service
@@ -38,7 +38,7 @@ services:
   agent:
     build: .
     ports:
-      - "8000:8000"
+      - "8000-8002:8000"
     environment:
       AGENT_API_KEY: "${AGENT_API_KEY:?Set AGENT_API_KEY in .env}"
       REDIS_URL: redis://redis:6379/0

@@ -42,12 +42,12 @@ docker images | grep agent
 
 | Bản | Dung lượng |
 |-----|-----------|
-| 1 stage (bản đầu) | ... MB |
-| Multi-stage | ... MB |
+| 1 stage (bản đầu) | 1.73 GB |
+| Multi-stage | 294 MB |
 
 Giải thích: phần dung lượng chênh lệch đó là những gì?
 
-> *Câu trả lời của bạn*
+> Image multi-stage nhỏ hơn khoảng 1.44 GB, tương đương khoảng 83%. Mức giảm này không chỉ đến từ việc tách stage: bản đầu dùng `python:3.11` và `COPY . .`, còn bản hiện tại dùng `python:3.11-slim`, cài dependency với `--no-cache-dir` ở stage `builder`, rồi chỉ chép dependency cùng source cần chạy sang `runtime`. Vì vậy image cuối nhẹ hơn và không chứa các file chỉ cần trong build stage.
 
 ---
 
@@ -57,7 +57,7 @@ Sửa một ký tự trong `app/main.py` rồi build lại. Với Dockerfile c�
 layer nào được dùng lại từ cache, layer nào phải chạy lại? Nếu bạn đặt
 `COPY . .` lên trước `RUN pip install` thì kết quả khác thế nào?
 
-> *Câu trả lời của bạn*
+> Sau khi sửa app/main.py, Docker dùng lại cache cho bước cài dependency vì requirements.txt không đổi. Các bước chép source chạy lại. Nếu đặt COPY . . trước RUN pip install, thay đổi source sẽ làm mất cache của bước copy và khiến bước cài dependency chạy lại
 
 ---
 
@@ -67,7 +67,7 @@ Container mặc định chạy bằng root. Mô tả chuỗi sự kiện dẫn t
 trong code Python của bạn" tới "kẻ tấn công có quyền cao trên máy host", và
 lệnh `USER` cắt đứt chuỗi đó ở chỗ nào.
 
-> *Câu trả lời của bạn*
+> Nếu có lỗ hổng cho phép kẻ tấn công chạy mã hoặc lệnh tùy ý trong ứng dụng Python, các lệnh đó sẽ chạy với quyền của tiến trình ứng dụng. Nếu container chạy bằng root, kẻ tấn công có quyền root bên trong container, có thể đọc dữ liệu và bí mật được cấp cho container, sửa hệ thống hoặc khai thác cấu hình, quyền truy cập hay lỗi của runtime/kernel để thoát container và chiếm quyền cao trên host. Lệnh `USER app` chạy ứng dụng bằng tài khoản thường, nên khi bị khai thác kẻ tấn công chỉ có quyền hạn chế của tài khoản đó; nó cắt đứt mắt xích cấp quyền root bên trong container, nhưng không đảm bảo container không thể bị thoát.
 
 ---
 
@@ -78,7 +78,7 @@ phút đồng hồ (reset lúc giây 00), một người dùng có thể gửi t
 request trong 2 giây liên tiếp khi hạn mức là 10/phút? Giải thích cách đạt được
 con số đó.
 
-> *Câu trả lời của bạn*
+> Tối đa 20 request trong 2 giây: gửi 10 request ngay trước lúc phút kết thúc, rồi gửi thêm 10 ngay sau khi bộ đếm reset ở giây 00. Hai nhóm request nằm ở hai phút khác nhau nên đều được chấp nhận, dù tổng cộng có thể đến 20 request trong khoảng 2 giây. Sliding window 60 giây tránh được kiểu dồn request quanh ranh giới này.
 
 ---
 
@@ -87,7 +87,7 @@ con số đó.
 Hai cơ chế này khác nhau ở điểm nào? Cho một tình huống mà rate limit cho qua
 nhưng cost guard phải chặn, và một tình huống ngược lại.
 
-> *Câu trả lời của bạn*
+> Rate limit giới hạn số request trong một cửa sổ 60 giây; cost guard giới hạn tổng chi phí của mỗi người dùng trong tháng. Ví dụ, mình còn dưới 10 request trong phút này nhưng đã vượt ngân sách tháng thì rate limit vẫn cho request qua, còn cost guard chặn trước khi gọi LLM (402). Ngược lại, nếu mình gửi request thứ 11 trong 60 giây nhưng chi phí tháng vẫn còn trong ngân sách, cost guard chưa chặn vì ngân sách chưa hết, nhưng rate limit sẽ trả 429.
 
 ---
 
@@ -96,7 +96,7 @@ nhưng cost guard phải chặn, và một tình huống ngược lại.
 Nếu gộp hai endpoint làm một và cho nó kiểm tra Redis, chuyện gì xảy ra với cụm
 3 container khi Redis mất kết nối 30 giây? Trả lời theo đúng thứ tự sự kiện.
 
-> *Câu trả lời của bạn*
+> Redis mất kết nối nên endpoint gộp kiểm tra Redis sẽ báo lỗi trên cả 3 container. Nếu nền tảng dùng endpoint đó làm liveness check, nó đánh dấu các container không khỏe và khởi động lại chúng; load balancer cũng ngừng gửi traffic tới các instance lỗi. Redis vẫn mất kết nối trong 30 giây nên restart không khắc phục được nguyên nhân, các lần kiểm tra tiếp tục thất bại và dịch vụ có thể không còn instance nào nhận traffic. Khi Redis hoạt động lại, probe thành công, các instance khỏe trở lại và traffic được gửi vào. Tách riêng `/health` (chỉ kiểm tra process) với `/ready` (kiểm tra Redis) giúp ngừng gửi traffic mà không restart process còn sống.
 
 ---
 
@@ -106,7 +106,16 @@ Chạy `docker compose up --scale agent=3` rồi gọi `/ask` nhiều lần vớ
 `X-User-Id`. Quan sát `history_length` trong response. Nếu lịch sử được lưu
 trong một dict Python thay vì Redis, bạn sẽ thấy con số đó thay đổi thế nào?
 
-> *Câu trả lời của bạn*
+> Mình chạy `docker compose up --build --scale agent=3 -d`. Sau đó gọi `/ask` cùng `X-User-Id` lần lượt tới agent-1, agent-2, agent-3 rồi agent-1:
+>
+> ```text
+> agent-1 (127.0.0.1:8001): HTTP 200, history_length=0
+> agent-2 (127.0.0.1:8000): HTTP 200, history_length=2
+> agent-3 (127.0.0.1:8002): HTTP 200, history_length=4
+> agent-1 (127.0.0.1:8001): HTTP 200, history_length=6
+> ```
+>
+> Kết quả tăng đều vì các replica đang dùng chung Redis, mỗi lượt thêm 2 message vào lịch sử. Nếu thay Redis bằng dict trong RAM, từng replica sẽ có bản riêng; với thứ tự A, B, C, A, kết quả sẽ là `0, 0, 0, 2` vì request đầu ở mỗi container không thấy lịch sử của hai container còn lại.
 
 ---
 
@@ -116,4 +125,4 @@ Ghi lại **một** lỗi bạn gặp khi deploy lên cloud (build fail, health 
 timeout, sai REDIS_URL, app không đọc `$PORT`...): thông báo lỗi là gì, bạn
 tìm ra nguyên nhân bằng cách nào, và sửa ra sao?
 
-> *Câu trả lời của bạn*
+> Khi deploy, request tới `/ready` bị lỗi. Mình kiểm tra cấu hình và thấy `REDIS_URL` vẫn là `redis://localhost:6379/0`; trên cloud, `localhost` trỏ tới chính container ứng dụng chứ không phải Redis của Railway nên app không kết nối được Redis. Mình đổi `REDIS_URL` sang URL Redis Railway cung cấp rồi deploy lại. Sau đó `/ready` hoạt động.
