@@ -16,7 +16,7 @@ Trong `Settings`, `agent_api_key` không có giá trị mặc định nên app c
 khi khởi động nếu thiếu biến môi trường. Hãy mô tả một tình huống cụ thể mà
 việc "chết sớm" này cứu bạn, so với việc để mặc định `"changeme"`.
 
-> *Câu trả lời của bạn*
+> Nếu để mặc định như "changeme", trong tình huống chúng ta quên chưa thay đổi "changeme" thành api key đúng, app sẽ vẫn khởi động mà không "chết sớm", do đó chúng ta không biết và vẫn để cho app chạy, kết quả là người dùng gửi request đến và sẽ bị lỗi do api key không match.
 
 ---
 
@@ -26,7 +26,7 @@ Chạy service và gọi `/ask` vài lần. Dán một dòng log JSON bạn thu 
 nêu **hai** việc bạn làm được với dòng log đó mà `print("đã trả lời xong")`
 không làm được.
 
-> *Câu trả lời của bạn*
+> Dòng log JSON của lần gọi `/ask`: `{"event":"ask_completed","level":"info","timestamp":"2026-09-29T04:26:26.297921+00:00","user_id":"sv-test","tokens_in":458,"tokens_out":47,"cost_usd":0.0000969}`. Từ log này, mình có thể lọc request theo `user_id` và thời gian để tra cứu hoạt động của một người dùng; đồng thời tổng hợp token và `cost_usd` để tìm request tốn kém hoặc theo dõi chi phí. `print("đã trả lời xong")` không có các trường dữ liệu chuẩn để lọc và thống kê tự động.
 
 ---
 
