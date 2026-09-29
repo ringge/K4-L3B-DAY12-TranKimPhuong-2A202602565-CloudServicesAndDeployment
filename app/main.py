@@ -137,7 +137,7 @@ def ask(
 ):
     """Hỏi agent một câu.
 
-    TODO (CP3 + CP4) — làm ĐÚNG THỨ TỰ sau:
+    (CP3 + CP4) — làm ĐÚNG THỨ TỰ sau:
       1. ``limiter.check(user_id)``           → 429 nếu gọi quá nhanh
       2. ``guard.check(user_id)``             → 402 nếu hết ngân sách
       3. ``history = store.get_history(user_id)``
